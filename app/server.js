@@ -3,7 +3,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
 const { logger } = require('./logger');
-const { metricsMiddleware, metricsEndpoint } = require('../monitoring/metrics');
+const { metricsMiddleware, metricsEndpoint } = require('./monitoring/metrics');
 const patientsRouter = require('./routes/patients');
 const appointmentsRouter = require('./routes/appointments');
 

@@ -12,7 +12,6 @@ WORKDIR /app
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY app/ ./
-COPY monitoring/ ./monitoring/
 
 RUN chown -R meditrack:meditrack /app
 USER meditrack

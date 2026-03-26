@@ -316,6 +316,8 @@ healthcare-devsecops-lab/
 │   │   └── secure-example.js      # Fixed versions of each vulnerability
 │   ├── __tests__/
 │   │   └── patients.test.js       # Jest test suite (health, patients, appointments)
+│   ├── monitoring/
+│   │   └── metrics.js             # Prometheus metrics (requests, duration, appointments)
 │   └── public/
 │       └── index.html             # MediTrack dashboard UI
 ├── docker/
@@ -326,8 +328,6 @@ healthcare-devsecops-lab/
 │   ├── deployment.yaml            # Hardened: securityContext, dropped capabilities, RO filesystem
 │   ├── service.yaml               # LoadBalancer service (port 80 → 3000)
 │   └── servicemonitor.yaml        # Prometheus ServiceMonitor
-├── monitoring/
-│   └── metrics.js                 # Prometheus metrics (requests, duration, appointments)
 └── policies/
     ├── deployment-policy.rego     # OPA: non-root, limits, probes, no :latest, no privileged
     └── namespace-policy.rego      # OPA: labels required, no default namespace
