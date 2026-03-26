@@ -1,6 +1,6 @@
 # Healthcare DevSecOps Lab — Securing the MediTrack Pipeline
 
-A hands-on DevSecOps lab that embeds security into every stage of a CI/CD pipeline. Students take the MediTrack patient appointment API from the [Healthcare CI/CD Lab](https://github.com/anmutetech/healthcare-cicd-lab) and layer on 6 security gates using industry-standard tools.
+A hands-on DevSecOps lab that embeds security into every stage of a CI/CD pipeline. Students take the MediTrack patient appointment API from the [Healthcare CI/CD Lab](https://github.com/anmutetech/healthcare-cicd-lab) and layer on 5 security gates using industry-standard tools.
 
 ## Scenario
 
@@ -8,74 +8,66 @@ You are a DevOps engineer at **MediTrack Health**. The development team shipped 
 
 Your job is to transform the basic CI/CD pipeline into a **DevSecOps pipeline** by adding:
 
-1. **Dependency auditing** -- Our app uses open-source packages built by other developers (e.g., Express, Helmet). Sometimes security flaws are discovered in those packages. `npm audit` checks every package we use against a public database of known vulnerabilities -- like checking whether a batch of medicine has been recalled before giving it to a patient.
+1. **Secret detection** -- Developers sometimes accidentally commit passwords, API keys, or database credentials into their code. Gitleaks scans the entire history of the repository to find these leaked secrets -- even ones that were "deleted" in a later commit. In healthcare, a leaked database password could expose thousands of patient records.
 
-2. **Secret detection** -- Developers sometimes accidentally commit passwords, API keys, or database credentials into their code. Gitleaks scans the entire history of the repository to find these leaked secrets -- even ones that were "deleted" in a later commit. In healthcare, a leaked database password could expose thousands of patient records.
+2. **Code quality and security analysis (SonarCloud)** -- SonarCloud is an industry-standard code quality platform used by thousands of companies worldwide. It performs deep analysis of your code to find bugs, security vulnerabilities (including the OWASP Top 10 -- the ten most critical web application security risks), code smells (code that works but is poorly written and hard to maintain), and duplicated code. It also tracks your **technical debt** -- an estimate of how long it would take to fix all the quality issues. Think of it as a **building health inspection** -- a professional inspector walks through the entire building checking for structural issues, fire hazards, code violations, and maintenance problems, then gives you a report card with a grade (A through E) and a prioritized fix list. In healthcare, SonarCloud helps catch security flaws that manual code review might miss, and gives the team a dashboard to track code quality over time.
 
-3. **Static analysis (SAST)** -- CodeQL reads through the source code (without running it) and looks for dangerous patterns -- for example, code that builds a database query by pasting user input directly into it (SQL injection), or code that uses a weak random number generator for session tokens. Think of it as a spell-checker, but for security mistakes instead of typos.
+3. **Container scanning** -- Our application runs inside a Docker container, which includes an operating system and many system libraries. Trivy scans the entire container image to check whether any of those components have known security flaws (called CVEs -- Common Vulnerabilities and Exposures). If a CRITICAL or HIGH severity issue is found, the deployment is blocked. Think of it as an **X-ray machine** -- before a package enters the building, it gets scanned for anything dangerous hidden inside.
 
-4. **Container scanning** -- Our application runs inside a Docker container, which includes an operating system and many system libraries. Trivy scans the entire container image to check whether any of those components have known security flaws (called CVEs -- Common Vulnerabilities and Exposures). If a CRITICAL or HIGH severity issue is found, the deployment is blocked.
-
-5. **SBOM generation** -- An SBOM (Software Bill of Materials) is an **ingredient list for your software**. Just like food packaging lists every ingredient so consumers know what's inside, an SBOM lists every package, library, and component inside your application. Healthcare regulators and auditors increasingly require SBOMs to verify that organizations know exactly what's running in production. Syft generates this list in a standard format called SPDX, which can be shared with auditors, security teams, or compliance officers.
-
-6. **Kubernetes policy enforcement** -- Kubernetes lets you run containers with almost any configuration, but not all configurations are safe. For example, a container running as the "root" (administrator) user is dangerous because if an attacker breaks into it, they have full control. OPA (Open Policy Agent) with Conftest lets us write **rules** that check our Kubernetes configuration files *before* deployment. Think of it as a building code inspection -- before the building (our app) goes live, an inspector (Conftest) checks it against safety codes (our policies) and rejects anything that doesn't comply.
+4. **Kubernetes policy enforcement** -- Kubernetes lets you run containers with almost any configuration, but not all configurations are safe. For example, a container running as the "root" (administrator) user is dangerous because if an attacker breaks into it, they have full control. OPA (Open Policy Agent) with Conftest lets us write **rules** that check our Kubernetes configuration files *before* deployment. Think of it as a building code inspection -- before the building (our app) goes live, an inspector (Conftest) checks it against safety codes (our policies) and rejects anything that doesn't comply.
 
 If any check fails, deployment is blocked.
 
 ## What Gets Created
 
-- **DevSecOps Pipeline** -- A 9-stage automated workflow in GitHub Actions. 7 of those stages are security checks that must all pass before the application is allowed to deploy. If any single check finds a problem, the pipeline stops and the code never reaches production.
+- **DevSecOps Pipeline** -- A 7-stage automated workflow in GitHub Actions. 5 of those stages are security and quality checks that must all pass before the application is allowed to deploy. If any single check finds a problem, the pipeline stops and the code never reaches production.
+- **SonarCloud Dashboard** -- A web-based dashboard showing your code's overall health: security vulnerabilities, bugs, code smells, test coverage percentage, and technical debt estimate. Your project gets a "quality gate" status -- pass or fail -- that the pipeline checks automatically.
 - **OPA Policies** -- A set of rules (written in a language called Rego) that define what a "safe" Kubernetes deployment looks like. For example: containers must not run as an administrator, every container must have memory and CPU limits so one app can't crash the whole server, and every container must have health checks so Kubernetes can restart it if it stops responding.
 - **Vulnerability Examples** -- Two files placed side by side: one with 5 common security mistakes (hardcoded passwords, SQL injection, logging patient SSNs, etc.) and one showing the correct, secure way to write the same code. Students study the difference and learn to recognize these patterns in real codebases.
-- **SBOM Artifact** -- A complete ingredient list of every package inside the application's container, generated automatically on every build and saved as a downloadable file. This is the document you hand to an auditor when they ask "what software components are running in your production environment?"
 - **Hardened Kubernetes Manifests** -- Deployment configuration that follows security best practices: the container runs as a non-root user, cannot escalate its own privileges, has a read-only filesystem (so attackers can't write malicious files), and drops all Linux capabilities it doesn't need.
 
 ## Architecture
 
 ```
- ┌─── DevSecOps Pipeline (GitHub Actions) ─────────────────────────────────────────────┐
- │                                                                                      │
- │   ┌──────────────────────────────────────────────────────────────────────────────┐   │
- │   │  Parallel Security Gates (all must pass)                                     │   │
- │   │                                                                              │   │
- │   │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌────────────────────┐  │   │
- │   │  │ 1. Unit      │ │ 2. Dependency│ │ 3. Secret    │ │ 4. Static Analysis │  │   │
- │   │  │    Tests     │ │    Audit     │ │    Detection │ │    (SAST)          │  │   │
- │   │  │              │ │              │ │              │ │                    │  │   │
- │   │  │  Jest        │ │  npm audit   │ │  Gitleaks    │ │  CodeQL            │  │   │
- │   │  │  ESLint      │ │  (HIGH+)     │ │  (full repo  │ │  (JavaScript)      │  │   │
- │   │  │  Coverage    │ │              │ │   history)   │ │                    │  │   │
- │   │  └──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └────────┬───────────┘  │   │
- │   │         │                │                │                  │              │   │
- │   └─────────┼────────────────┼────────────────┼──────────────────┼──────────────┘   │
- │             │                │                │                  │                   │
- │             ▼                ▼                ▼                  ▼                   │
- │   ┌──────────────────────────────────────────────────────────────────────────────┐   │
- │   │  Sequential Security Gates                                                   │   │
- │   │                                                                              │   │
- │   │  ┌──────────────────┐    ┌──────────────────┐    ┌────────────────────────┐  │   │
- │   │  │ 5. Container     │    │ 6. SBOM          │    │ 7. K8s Policy Check   │  │   │
- │   │  │    Scan          │───▶│    Generation     │    │                       │  │   │
- │   │  │                  │    │                  │    │    OPA/Conftest        │  │   │
- │   │  │  Trivy           │    │  Syft            │    │    (Rego policies)     │  │   │
- │   │  │  (CRITICAL/HIGH  │    │  (SPDX format)   │    │    - runAsNonRoot     │  │   │
- │   │  │   blocks deploy) │    │  Uploaded as      │    │    - resource limits  │  │   │
- │   │  │                  │    │  build artifact   │    │    - health probes    │  │   │
- │   │  └──────────────────┘    └──────────────────┘    │    - no :latest tag   │  │   │
- │   │                                                   │    - no privileged    │  │   │
- │   │                                                   └────────────────────────┘  │   │
- │   └──────────────────────────────────────────────────────────────────────────────┘   │
- │                                                                                      │
- │             All 7 gates pass                                                        │
- │                    │                                                                 │
- │                    ▼                                                                 │
- │   ┌──────────────────────┐         ┌──────────────────────┐                         │
- │   │  8. Build & Push     │────────▶│  9. Deploy to EKS    │                         │
- │   │  Docker image        │         │  kubectl apply       │                         │
- │   │  :latest + :sha      │         │  rollout status      │                         │
- │   └──────────────────────┘         └──────────────────────┘                         │
- │                                                                                      │
- └──────────────────────────────────────────────────────────────────────────────────────┘
+ ┌─── DevSecOps Pipeline (GitHub Actions) ──────────────────────────────────────────────┐
+ │                                                                                       │
+ │   ┌───────────────────────────────────────────────────────────────────────────────┐   │
+ │   │  Parallel Security Gates (all must pass)                                      │   │
+ │   │                                                                               │   │
+ │   │  ┌──────────────┐  ┌──────────────────┐  ┌──────────────────┐  ┌───────────┐  │   │
+ │   │  │ 1. Unit      │  │ 2. Secret        │  │ 3. Code Quality  │  │ 4. Trivy  │  │   │
+ │   │  │    Tests     │  │    Detection     │  │    & Security    │  │  Container│  │   │
+ │   │  │              │  │                  │  │                  │  │    Scan   │  │   │
+ │   │  │  Jest        │  │  Gitleaks        │  │  SonarCloud      │  │           │  │   │
+ │   │  │  ESLint      │  │  (full repo      │  │  (OWASP Top 10   │  │ CRITICAL  │  │   │
+ │   │  │  Coverage    │  │   history)       │  │   code smells    │  │ and HIGH  │  │   │
+ │   │  │              │  │                  │  │   tech debt      │  │ block     │  │   │
+ │   │  │              │  │                  │  │   coverage)      │  │ deploy    │  │   │
+ │   │  └──────┬───────┘  └──────┬───────────┘  └──────┬───────────┘  └─────┬─────┘  │   │
+ │   │         │                 │                      │                    │        │   │
+ │   └─────────┼─────────────────┼──────────────────────┼────────────────────┼────────┘   │
+ │             │                 │                      │                    │             │
+ │             ▼                 ▼                      ▼                    ▼             │
+ │   ┌───────────────────────────────────────────────────────────────────────────────┐   │
+ │   │  ┌────────────────────────────────────────────────────────────────────────┐   │   │
+ │   │  │ 5. K8s Policy Check (OPA/Conftest)                                    │   │   │
+ │   │  │                                                                        │   │   │
+ │   │  │  Validates Kubernetes manifests against Rego policies:                 │   │   │
+ │   │  │  - runAsNonRoot    - resource limits    - health probes               │   │   │
+ │   │  │  - no :latest tag  - no privileged      - no privilege escalation     │   │   │
+ │   │  └────────────────────────────────────────────────────────────────────────┘   │   │
+ │   └───────────────────────────────────────────────────────────────────────────────┘   │
+ │                                                                                       │
+ │             All 5 gates pass                                                         │
+ │                    │                                                                  │
+ │                    ▼                                                                  │
+ │   ┌──────────────────────┐         ┌──────────────────────┐                          │
+ │   │  6. Build & Push     │────────▶│  7. Deploy to EKS    │                          │
+ │   │  Docker image        │         │  kubectl apply       │                          │
+ │   │  :latest + :sha      │         │  rollout status      │                          │
+ │   └──────────────────────┘         └──────────────────────┘                          │
+ │                                                                                       │
+ └───────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Prerequisites
@@ -98,7 +90,19 @@ kubectl get nodes
 
 You need a [DockerHub](https://hub.docker.com/) account to store the container image.
 
-### 4. Tools
+### 4. SonarCloud Account
+
+You need a free [SonarCloud](https://sonarcloud.io) account:
+
+1. Go to [sonarcloud.io](https://sonarcloud.io) and sign in with your GitHub account
+2. Click **"+"** > **"Analyze new project"**
+3. Import your forked repository
+4. Copy the **organization** and **project key** from the SonarCloud dashboard
+5. Update `sonar-project.properties` with your organization and project key
+6. In SonarCloud, go to **My Account** > **Security** > generate a token
+7. Add that token as `SONAR_TOKEN` in your GitHub repository secrets
+
+### 5. Tools
 
 ```bash
 aws --version
@@ -125,15 +129,24 @@ Edit `kubernetes/deployment.yaml` and replace the image placeholder with your Do
 image: <your-dockerhub-username>/meditrack-api:latest
 ```
 
+### Step 3 — Update SonarCloud Configuration
+
+Edit `sonar-project.properties` and replace the placeholders:
+
+```properties
+sonar.organization=<your-sonarcloud-organization>
+sonar.projectKey=<your-sonarcloud-project-key>
+```
+
 Commit and push:
 
 ```bash
-git add kubernetes/deployment.yaml
-git commit -m "Update Docker image to use my DockerHub account"
+git add kubernetes/deployment.yaml sonar-project.properties
+git commit -m "Update Docker image and SonarCloud config"
 git push origin main
 ```
 
-### Step 3 — Configure GitHub Secrets
+### Step 4 — Configure GitHub Secrets
 
 In your forked repository, go to **Settings** > **Secrets and variables** > **Actions** and add:
 
@@ -143,45 +156,48 @@ In your forked repository, go to **Settings** > **Secrets and variables** > **Ac
 | `DOCKER_PASSWORD` | Your DockerHub password |
 | `AWS_ACCESS_KEY_ID` | Your IAM user access key ID |
 | `AWS_SECRET_ACCESS_KEY` | Your IAM user secret access key |
+| `SONAR_TOKEN` | Your SonarCloud token (from Prerequisites step 4) |
 
 > **Note:** `GITLEAKS_LICENSE` is optional. Gitleaks works without a license key on public repositories. For private repos, get a free license at [gitleaks.io](https://gitleaks.io).
 
-### Step 4 — Watch the Pipeline Run
+### Step 5 — Watch the Pipeline Run
 
-The push in Step 2 triggers the pipeline. Go to the **Actions** tab and watch all 9 stages:
+The push in Step 3 triggers the pipeline. Go to the **Actions** tab and watch all 7 stages:
 
 1. **Unit Tests** -- Runs the automated test suite to make sure the application works correctly (e.g., "does the patient registration endpoint actually create a patient?")
-2. **Dependency Audit** -- Checks every third-party package the app uses against a database of known security flaws. Think of it as a product recall check for software components.
-3. **Secret Detection** -- Scans every commit ever made to the repository looking for accidentally committed passwords, API keys, or tokens. Even if someone deleted the secret in a later commit, it's still in the git history.
-4. **Static Analysis (SAST)** -- Reads through the source code looking for dangerous coding patterns like SQL injection or hardcoded passwords, without actually running the app. Like a spell-checker for security.
-5. **Container Scan** -- Builds the Docker image and then scans every layer of it (the operating system, system libraries, and app packages) for known vulnerabilities. Blocks deployment if anything CRITICAL or HIGH is found.
-6. **SBOM Generation** -- Creates a complete "ingredient list" of every component inside the Docker image and saves it as a downloadable file. Required by healthcare regulators and auditors to prove you know what's in your production environment.
-7. **K8s Policy Check** -- Validates the Kubernetes configuration files against a set of safety rules *before* deployment. For example: "Is the container running as a non-root user? Does it have memory limits? Does it have health checks?" If any rule is violated, deployment is blocked.
-8. **Build & Push** -- Only runs if all 7 checks above pass. Builds the final Docker image and uploads it to DockerHub.
-9. **Deploy** -- Deploys the approved, scanned, policy-compliant image to the EKS Kubernetes cluster.
+2. **Secret Detection** -- Scans every commit ever made to the repository looking for accidentally committed passwords, API keys, or tokens. Even if someone deleted the secret in a later commit, it's still in the git history.
+3. **Code Quality & Security (SonarCloud)** -- Performs deep analysis of the entire codebase looking for bugs, security vulnerabilities (OWASP Top 10), code smells (code that works but is messy or hard to maintain), and duplicated code. Also tracks test coverage and estimates technical debt (how long it would take to fix all issues). Results appear in the SonarCloud dashboard with a quality gate -- pass or fail.
+4. **Container Scan** -- Builds the Docker image and then scans every layer of it (the operating system, system libraries, and app packages) for known vulnerabilities. Blocks deployment if anything CRITICAL or HIGH is found.
+5. **K8s Policy Check** -- Validates the Kubernetes configuration files against a set of safety rules *before* deployment. For example: "Is the container running as a non-root user? Does it have memory limits? Does it have health checks?" If any rule is violated, deployment is blocked.
+6. **Build & Push** -- Only runs if all 5 checks above pass. Builds the final Docker image and uploads it to DockerHub.
+7. **Deploy** -- Deploys the approved, scanned, policy-compliant image to the EKS Kubernetes cluster.
 
-> **Note:** The first run takes approximately 8-12 minutes due to CodeQL analysis.
+> **Note:** The first run takes approximately 5-8 minutes.
 
-### Step 5 — Explore the Security Results
+### Step 6 — Explore the SonarCloud Dashboard
 
 After the pipeline completes:
 
-**CodeQL findings (security issues in your code):**
-1. Go to the **Security** tab in your repository
-2. Click **Code scanning alerts**
-3. Review the findings -- CodeQL will flag issues in `app/vulnerabilities/insecure-example.js` such as hardcoded passwords and SQL injection. Each alert explains what the problem is, why it's dangerous, and how to fix it.
+1. Go to [sonarcloud.io](https://sonarcloud.io) and find your project
+2. Review the **Quality Gate** status -- this is the pass/fail verdict for your code
+3. Explore the dashboard sections:
+   - **Bugs** -- Code that is broken or will break (e.g., null pointer dereference)
+   - **Vulnerabilities** -- Security flaws from the OWASP Top 10 (e.g., SQL injection, XSS)
+   - **Code Smells** -- Code that works but is poorly structured and hard to maintain
+   - **Coverage** -- What percentage of your code is covered by automated tests
+   - **Duplications** -- Repeated code blocks that should be refactored
+   - **Technical Debt** -- An estimate of how long it would take to fix all issues (e.g., "2 hours")
+4. Click on any finding to see the exact line of code, an explanation of the problem, and how to fix it
 
-**SBOM artifact (the "ingredient list" for your app):**
-1. Go to the **Actions** tab
-2. Click the completed workflow run
-3. Scroll to **Artifacts** and download `sbom`
-4. Open `sbom.spdx.json` -- this file lists every single package inside your Docker image. In a real healthcare organization, this document would be shared with compliance officers, auditors, or regulators who need to verify that your software doesn't contain banned or vulnerable components. For example, if a critical vulnerability is discovered in a widely-used library (like the [Log4Shell incident](https://en.wikipedia.org/wiki/Log4Shell) in 2021), having an SBOM lets you instantly check whether your application is affected -- instead of spending days investigating.
+> **SonarCloud will flag issues in `app/vulnerabilities/insecure-example.js`** -- this is intentional! Those vulnerabilities are there for learning purposes. In a real project, you would fix them before merging.
+
+### Step 7 — Explore the Security Results
 
 **Trivy scan results (vulnerabilities in the container image):**
 1. In the workflow run, click the **Container Scan (Trivy)** job
 2. Review the vulnerability table -- each row shows a CVE ID (a unique identifier for the vulnerability), which package is affected, the current version, the fixed version, and the severity level (CRITICAL, HIGH, MEDIUM, LOW). The pipeline blocks deployment if any CRITICAL or HIGH issues are found.
 
-### Step 6 — Understand the Vulnerability Examples
+### Step 8 — Understand the Vulnerability Examples
 
 Review the two files in `app/vulnerabilities/`:
 
@@ -190,9 +206,9 @@ Review the two files in `app/vulnerabilities/`:
 | `insecure-example.js` | **5 intentional vulnerabilities** -- hardcoded credentials, SQL injection, ReDoS, PII in logs, insecure randomness |
 | `secure-example.js` | **The fixed versions** -- environment variables, parameterized queries, safe validation, redacted logs, crypto.randomBytes |
 
-These files demonstrate common security mistakes that CodeQL and code review should catch. In a real healthcare application, any of these could lead to a data breach or HIPAA violation.
+These files demonstrate common security mistakes that SonarCloud and code review should catch. In a real healthcare application, any of these could lead to a data breach or HIPAA violation.
 
-### Step 7 — Understand the OPA Policies
+### Step 9 — Understand the OPA Policies
 
 Review the files in `policies/`. These are written in a language called **Rego** (pronounced "ray-go"), which is used by OPA (Open Policy Agent) to define rules. You don't need to master Rego -- just understand what each rule checks and why it matters.
 
@@ -229,7 +245,7 @@ conftest test kubernetes/deployment.yaml -p policies/
 # Output: FAIL - Container 'meditrack-api' must define a readinessProbe
 ```
 
-### Step 8 — Verify the Deployment
+### Step 10 — Verify the Deployment
 
 ```bash
 kubectl get pods -n meditrack
@@ -248,7 +264,7 @@ curl http://<EXTERNAL-IP>/api/patients
 curl http://<EXTERNAL-IP>/metrics
 ```
 
-### Step 9 — Break and Fix the Pipeline (Challenge)
+### Step 11 — Break and Fix the Pipeline (Challenge)
 
 Try introducing a security issue and watch the pipeline catch it:
 
@@ -259,7 +275,7 @@ Try introducing a security issue and watch the pipeline catch it:
 const DB_PASSWORD = 'patient-db-secret-123';
 ```
 
-2. Commit and push -- watch CodeQL flag the hardcoded credential
+2. Commit and push -- watch SonarCloud flag the hardcoded credential
 
 3. **Remove resource limits from the deployment:**
 
@@ -275,11 +291,9 @@ const DB_PASSWORD = 'patient-db-secret-123';
 
 | Tool | What It Does (Plain English) | Real-World Analogy | Used By |
 |---|---|---|---|
-| **npm audit** | Checks if any of the open-source packages your app depends on have known security flaws | Checking whether any ingredients in your product have been recalled | Built into npm -- every Node.js developer uses this |
 | **Gitleaks** | Scans the entire git history for accidentally committed passwords, API keys, or tokens | A metal detector scanning for things that shouldn't be there | GitLab, Uber, Shopify (17k+ GitHub stars) |
-| **CodeQL** | Reads source code and finds dangerous patterns like SQL injection or hardcoded secrets | A spell-checker, but for security mistakes | Built into GitHub, used by 100k+ repositories |
+| **SonarCloud** | Analyzes code for bugs, security vulnerabilities (OWASP Top 10), code smells, duplication, and technical debt. Tracks code quality over time with dashboards and quality gates | A professional building health inspector who checks for structural issues, fire hazards, and code violations, then gives you a report card and fix list | Used by 400,000+ organizations including BMW, Siemens, NASA, and most Fortune 500 companies |
 | **Trivy** | Scans every layer of a Docker container image for operating system and library vulnerabilities | An X-ray machine scanning a package before it enters the building | Most popular container scanner in the industry (CNCF project) |
-| **Syft** | Generates a complete list of every component inside your container (the SBOM) | A nutrition label listing every ingredient in a food product | Anchore project, adopted by US federal agencies for supply chain compliance |
 | **OPA/Conftest** | Checks Kubernetes configuration files against a set of safety rules before deployment | A building code inspector checking blueprints before construction begins | Netflix, Goldman Sachs, CNCF graduated project |
 
 ## Cleanup
@@ -301,8 +315,9 @@ kubectl delete -f kubernetes/namespace.yaml
 ```
 healthcare-devsecops-lab/
 ├── .github/workflows/
-│   └── devsecops.yml              # 9-stage DevSecOps pipeline
+│   └── devsecops.yml              # 7-stage DevSecOps pipeline
 ├── .gitleaks.toml                  # Gitleaks configuration (allowlisted paths)
+├── sonar-project.properties        # SonarCloud configuration
 ├── app/
 │   ├── package.json               # Dependencies (express, helmet, prom-client, winston)
 │   ├── server.js                  # Express server with security middleware
