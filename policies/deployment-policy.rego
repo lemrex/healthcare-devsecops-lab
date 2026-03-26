@@ -1,9 +1,11 @@
 package main
 
 import future.keywords.in
+import future.keywords.if
+import future.keywords.contains
 
 # Deny containers running as root
-deny[msg] {
+deny contains msg if {
   input.kind == "Deployment"
   container := input.spec.template.spec.containers[_]
   not container.securityContext.runAsNonRoot
@@ -11,7 +13,7 @@ deny[msg] {
 }
 
 # Deny containers without resource limits
-deny[msg] {
+deny contains msg if {
   input.kind == "Deployment"
   container := input.spec.template.spec.containers[_]
   not container.resources.limits
@@ -19,7 +21,7 @@ deny[msg] {
 }
 
 # Deny containers without resource requests
-deny[msg] {
+deny contains msg if {
   input.kind == "Deployment"
   container := input.spec.template.spec.containers[_]
   not container.resources.requests
@@ -27,7 +29,7 @@ deny[msg] {
 }
 
 # Deny containers without a readiness probe
-deny[msg] {
+deny contains msg if {
   input.kind == "Deployment"
   container := input.spec.template.spec.containers[_]
   not container.readinessProbe
@@ -35,7 +37,7 @@ deny[msg] {
 }
 
 # Deny containers without a liveness probe
-deny[msg] {
+deny contains msg if {
   input.kind == "Deployment"
   container := input.spec.template.spec.containers[_]
   not container.livenessProbe
@@ -43,7 +45,7 @@ deny[msg] {
 }
 
 # Deny images using the :latest tag
-deny[msg] {
+deny contains msg if {
   input.kind == "Deployment"
   container := input.spec.template.spec.containers[_]
   endswith(container.image, ":latest")
@@ -51,7 +53,7 @@ deny[msg] {
 }
 
 # Deny privileged containers
-deny[msg] {
+deny contains msg if {
   input.kind == "Deployment"
   container := input.spec.template.spec.containers[_]
   container.securityContext.privileged == true
@@ -59,7 +61,7 @@ deny[msg] {
 }
 
 # Deny containers that allow privilege escalation
-deny[msg] {
+deny contains msg if {
   input.kind == "Deployment"
   container := input.spec.template.spec.containers[_]
   container.securityContext.allowPrivilegeEscalation == true
