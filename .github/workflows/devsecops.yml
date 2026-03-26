@@ -121,6 +121,7 @@ jobs:
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
+          trivyignores: '.trivyignore'
 
   # ──────────────────────────────────────────────────────────
   # Stage 5: Kubernetes Policy Check
