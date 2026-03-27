@@ -1,4 +1,4 @@
-name: MediTrack DevSecOps Pipeline
+name: MediTrack DevSecOps Pipelines
 
 on:
   push:
