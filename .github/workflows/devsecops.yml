@@ -191,15 +191,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Update kubeconfig
-        run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER }}
+      - name: Configure kubectl for Huawei Cloud CCE
+        run: |
+          sudo mkdir -p $HOME/.kube
+          sudo chown -R runner:runner $HOME/.kube
+          export KUBECONFIG=$HOME/.kube/config
+          echo "${{ secrets.KUBE_CONFIG_DATA }}" > $KUBECONFIG
 
       - name: Deploy to Kubernetes
         run: |
